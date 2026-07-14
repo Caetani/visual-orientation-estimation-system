@@ -9,7 +9,6 @@ import pandas as pd
 import requests
 
 from utils.evaluation_utils import geodesic_error
-from utils.interface_utils import PredictionRequest
 
 X_cols = [
     'compactness_ext',
@@ -67,7 +66,33 @@ if __name__ == '__main__':
         counter += 1
         # Validate locally first, so a malformed row fails fast with a clear
         # Pydantic error instead of a confusing HTTP 400 from the server.
-        payload = PredictionRequest(**row[X_cols + y_cols].to_dict())
+        input_features = {col: row[col] for col in X_cols}
+        outputs = {col: row[col] for col in y_cols}
+
+        payload = {
+            'x': input_features,
+            'y': outputs
+        }
+        
+        response = requests.post(url=URL, json=payload)
+
+        if response.status_code != 200:
+            print(f"[{idx}] request failed: {response.status_code} {response.text}")
+            failed.append(idx)
+            continue
+
+        result = response.json()
+
+        q_pred = np.array(
+            [result["qw"], result["qx"], result["qy"], result["qz"]],
+            dtype=np.float64,
+        )
+        q_true = y_test.loc[idx, y_cols].to_numpy(dtype=np.float64)
+
+        error_deg = geodesic_error(q_true, q_pred)
+        errors.append(error_deg)
+
+        """ payload = PredictionRequest(**row[X_cols + y_cols].to_dict())
 
         response = requests.post(URL, json=payload.model_dump())
 
@@ -77,14 +102,7 @@ if __name__ == '__main__':
             continue
 
         result = response.json()
-        q_pred = np.array(
-            [result["qw"], result["qx"], result["qy"], result["qz"]],
-            dtype=np.float64,
-        )
-        q_true = y_test.loc[idx, y_cols].to_numpy(dtype=np.float64)
-
-        error_deg = geodesic_error(q_true, q_pred)
-        errors.append(error_deg)
+         """
 
     errors = np.array(errors)
 
