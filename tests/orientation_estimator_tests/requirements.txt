@@ -1,0 +1,8 @@
+# Python version 3.13.3
+
+scikit-learn==1.9.0
+functions-framework==3.10.2
+pydantic==2.13.4
+pandas==3.0.3l
+openpyxl==3.1.5
+requests==2.34.2
