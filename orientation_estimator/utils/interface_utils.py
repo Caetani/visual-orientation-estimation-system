@@ -60,3 +60,5 @@ class PredictionResponse(BaseModel):
     qx: float
     qy: float
     qz: float
+    geodesic_error: float
+

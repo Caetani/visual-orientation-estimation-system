@@ -4,6 +4,7 @@ from pathlib import Path
 SERVICE_ROOT = Path(__file__).resolve().parents[2] / "orientation_estimator"
 sys.path.insert(0, str(SERVICE_ROOT))
 
+import json
 import numpy as np
 import pandas as pd
 import requests
@@ -47,13 +48,12 @@ URL = "http://localhost:8080"
 
 
 if __name__ == '__main__':
+    OBJECT_ID = 4
     DATA_DIR = SERVICE_ROOT / '..' / 'data' / 'splitted_train_70_30.xlsx'
 
     df = pd.read_excel(DATA_DIR)
-    df_test = df[(df['set'] == 'test') & (df['object_id'] == 4)]
-
-    #print(df_test)
-    #exit()
+    df = df[df['object_id'] == OBJECT_ID]
+    df_test = df[df['set'] == 'test']
 
     X_test, y_test = df_test[X_cols], df_test[y_cols]
 
@@ -64,8 +64,7 @@ if __name__ == '__main__':
     for idx, row in df_test.iterrows():
         print(counter)
         counter += 1
-        # Validate locally first, so a malformed row fails fast with a clear
-        # Pydantic error instead of a confusing HTTP 400 from the server.
+        
         input_features = {col: row[col] for col in X_cols}
         outputs = {col: row[col] for col in y_cols}
 
@@ -90,19 +89,8 @@ if __name__ == '__main__':
         q_true = y_test.loc[idx, y_cols].to_numpy(dtype=np.float64)
 
         error_deg = geodesic_error(q_true, q_pred)
+        assert error_deg == result['geodesic_error'], f"Error mismatch: {error_deg} != {result['geodesic_error']}"
         errors.append(error_deg)
-
-        """ payload = PredictionRequest(**row[X_cols + y_cols].to_dict())
-
-        response = requests.post(URL, json=payload.model_dump())
-
-        if response.status_code != 200:
-            print(f"[{idx}] request failed: {response.status_code} {response.text}")
-            failed.append(idx)
-            continue
-
-        result = response.json()
-         """
 
     errors = np.array(errors)
 

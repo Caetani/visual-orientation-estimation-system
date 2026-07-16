@@ -11,16 +11,12 @@ y_cols = ModelOutputs.model_fields.keys()
 
 @functions_framework.http
 def estimate_orientation(request):
-    if request.method == "GET": return {'name': 'Bernardo', 'age': 26}
-
     if request.method != "POST":
         return {"error": "Method not allowed. Use POST."}, 405, {"Allow": "POST"}
 
     body = request.get_json(silent=True)
     if body is None:
         return {"error": "Request body must be valid JSON."}, 400
-
-    print(body)
 
     try:
         payload = PredictionRequest(**body)
@@ -32,11 +28,13 @@ def estimate_orientation(request):
 
     model = load_model()
     y_pred = normalize_quarternion(model.predict(x)[0])
-    error = geodesic_error(y_true, y_pred)
-    print(f"Geodesic error: {y_true, y_pred, geodesic_error(y_true, y_pred)}")
     
     response_payload = {}
     for i, y_col in enumerate(y_cols):
         response_payload[y_col] = y_pred[i]
 
-    return response_payload
+    response_payload['geodesic_error'] = geodesic_error(y_true, y_pred)
+
+    response = PredictionResponse(**response_payload)
+
+    return response.model_dump_json(), 200
